@@ -58,7 +58,21 @@ idx_lb=LB.values>=1
 Dtadpole = Dtadpole[idx_lb]
 
 # Select features
-Dtadpole = Dtadpole[['RID','Diagnosis','EXAMDATE', 'AGE', 'ADAS13','Ventricles','ICV_bl', 'ST44CV_UCSFFSL_02_01_16_UCSFFSL51ALL_08_01_16']].copy()
+Dtadpole = Dtadpole[[
+        'RID', 
+        'Diagnosis',
+        'EXAMDATE', 
+        'AGE', 
+        'ADAS13', 
+        'Ventricles', 
+        'ICV_bl', 
+        'ST44CV_UCSFFSL_02_01_16_UCSFFSL51ALL_08_01_16',
+        'ST105CV_UCSFFSL_02_01_16_UCSFFSL51ALL_08_01_16',
+        'ST121TS_UCSFFSL_02_01_16_UCSFFSL51ALL_08_01_16',
+        'ABETA_UPENNBIOMK9_04_19_17',
+        'TAU_UPENNBIOMK9_04_19_17',
+        'PTAU_UPENNBIOMK9_04_19_17',
+]].copy()
 
 # Force values to numeric
 h = list(Dtadpole)
@@ -191,10 +205,10 @@ Y_FutureVentricles_ICV_norm=(Y_FutureVentricles_ICV - m_FutureVentricles_ICV)/s_
    
 #Train SVM for diagnosis
 import sklearn.svm as svm
-clf = svm.SVC(kernel='linear',probability=True)
+#clf = svm.SVC(kernel='linear',probability=True)
 
-# from sklearn.ensemble import RandomForestClassifier
-# clf = RandomForestClassifier()
+from sklearn.ensemble import RandomForestClassifier
+clf = RandomForestClassifier()
 clf.fit(Dtrainmat_Diagnosis, Y_FutureDiagnosis)
 
 #Train SVR for ADAS
