@@ -207,9 +207,9 @@ def activeAtMostRecentVisit(REGISTRY_table):
 
     #* Identify those who are active at their final visit
     ActiveAtMostRecentVisit_ADNI1  = np.logical_and( MostRecentVisit_ADNI1.flatten() ,VisitConducted_ADNI1 ) 
-    ActiveAtMostRecentVisit_ADNI1  = np.logical_and(ActiveAtMostRecentVisit_ADNI1, np.logical_not(InactiveAtAnyVisit.flatten()==1) )
+    ActiveAtMostRecentVisit_ADNI1  = np.logical_and(ActiveAtMostRecentVisit_ADNI1, np.logical_not(InactiveAtAnyVisit.flatten()==1))
 
-    ActiveAtMostRecentVisit_ADNIGO = np.logical_and( MostRecentVisit_ADNIGO.flatten(),ActiveVisits_ADNIGO2 ) , np.logical_not(InactiveAtAnyVisit.flatten()==1) )
+    ActiveAtMostRecentVisit_ADNIGO = np.logical_and( MostRecentVisit_ADNIGO.flatten(),ActiveVisits_ADNIGO2 , np.logical_not(InactiveAtAnyVisit.flatten()==1))
     ActiveAtMostRecentVisit_ADNI2  = np.logical_and( np.logical_and( MostRecentVisit_ADNI2.flatten() ,ActiveVisits_ADNIGO2 ) , np.logical_not(InactiveAtAnyVisit.flatten()==1) )
 
     return ( ActiveAtMostRecentVisit_ADNI1, ActiveAtMostRecentVisit_ADNIGO, ActiveAtMostRecentVisit_ADNI2 ) 

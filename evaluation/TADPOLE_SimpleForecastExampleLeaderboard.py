@@ -46,8 +46,10 @@ from dateutil.relativedelta import relativedelta
 ## Read in the TADPOLE data set and extract a few columns of salient information.
 # Script requires that TADPOLE_D1_D2.csv is in the parent directory. Change if
 # necessary
-dataLocationD1D2 = '../'  # parent directory
-dataLocationLB1LB2 = './' # current directory
+dataLocationD1D2 = '/Users/quentin/brainhack/06_dem_forecast/'
+dataLocationLB1LB2 = '/Users/quentin/brainhack/06_dem_forecast/'
+#dataLocationD1D2 = '../'  # parent directory
+#dataLocationLB1LB2 = './' # current directory
 
 tadpoleD1D2File = os.path.join(dataLocationD1D2,'TADPOLE_D1_D2.csv')
 tadpoleLB1LB2File = os.path.join(dataLocationLB1LB2,'TADPOLE_LB1_LB2.csv')
