@@ -7,6 +7,14 @@
 #Date:
 #12 Nov 2017
 
+def _update_age(current_age, current_date, new_date):
+    '''return age in float'''
+    #print (exam_date, initial_datetime, exam_datetime)
+    delta = (new_date - current_date)
+    #print(delta.days, age)
+    new_age = (current_age * 365. + delta.days) / 365.
+    return new_age
+
 print('Load data and select features')
 #str_exp='C:/Users/Esther/Documents/TADPOLE/scripts/tadpole-bigr/'
 str_exp = '/Users/quentin/brainhack/06_dem_forecast/'
@@ -55,7 +63,7 @@ Dtadpole = Dtadpole[['RID','Diagnosis','EXAMDATE', 'AGE', 'ADAS13','Ventricles',
 # Force values to numeric
 h = list(Dtadpole)
 for i in range(5,len(h)):
-    print([i])
+    #print([i])
     if Dtadpole[h[i]].dtype != 'float64':
         Dtadpole[h[i]]=pd.to_numeric(Dtadpole[h[i]], errors='coerce')
 
@@ -72,7 +80,7 @@ Dtadpole_sorted = pd.DataFrame(columns=h)
 
 current_dates = []
 for i in range(len(urid)):
-#     print([i])
+    print([i])
     age_i = Dtadpole.loc[Dtadpole['RID'] == urid[i], 'AGE']
     exam_i = Dtadpole.loc[Dtadpole['RID'] == urid[i], 'EXAMDATE']
 
@@ -132,11 +140,11 @@ for i in range(len(uRIDs)):
     Y_FutureVentricles_ICV_temp[idx_copy]= D.loc[idx,'Ventricles_ICV'].values[1:]
     Y_FutureDiagnosis_temp[idx_copy]= D.loc[idx,'Diagnosis'].values[1:]
 
-
 Dtrain = D.drop(['RID','Diagnosis'], axis=1).copy() 
 print (Dtrain.info())
 #Fill nans in feature matrix
 Dtrainmat = Dtrain.values
+
 h = list(Dtrain)
 m = []
 s = []
@@ -145,6 +153,7 @@ for i in range(Dtrainmat.shape[1]):
     s.append(np.nanstd(Dtrainmat[:,i]))
     Dtrainmat[np.isnan(Dtrainmat[:,i]),i]=m[i]
     Dtrainmat[:,i]=(Dtrainmat[:,i] - m[i])/s[i]
+
 
 #Remove NaNs in Diagnosis
 idx_last_Diagnosis = np.isnan(Y_FutureDiagnosis_temp)
@@ -202,10 +211,52 @@ print('Create test set and do predictions')
 S = pd.read_csv(os.path.join(str_exp, 'IntermediateData','ToPredict.csv'),header=None)
 S=S.values
 
-Dtestmat=np.zeros((len(S),Dtrainmat.shape[1]))
+Dtrain_age = D['CURRENTAGE'].copy()
+Dtrain_examdate = Dtadpole['EXAMDATE'].copy()
+
+_forecast_dates = []
+for _year in range(2010, 2018):
+    for _month in range(1, 13):
+        _date = '{year}-{month}'.format(
+            year=_year,
+            month=str(_month).zfill(2))
+        _forecast_dates.append(_date)
+_forecast_dates = _forecast_dates[4:-8]
+
+Dtestmats = []
+_forecast_rids = []
+_forecast_month = []
+_forecast_date = []
 for i in range(len(S)):
-    idx_S=RID.values==S[i]
-    Dtestmat[i,:]=Dtrainmat[np.where(idx_S)[0][-1],:]
+    for _idate, _date in enumerate(_forecast_dates):
+        _forecast_rids.append(S[i])
+        _forecast_month.append(_idate + 1)
+        _forecast_date.append(_date)
+
+for i in range(len(S)):
+    idx_S = RID.values==S[i]
+    Dtestmat = np.zeros((len(_forecast_dates), Dtrainmat.shape[1]))
+    for _idate, _date in enumerate(_forecast_dates):
+        Dtestmat[_idate, :] = Dtrainmat[np.where(idx_S)[0][-1], :]
+        m_age = m[Dtrain.columns.get_loc('CURRENTAGE')]
+        s_age = s[Dtrain.columns.get_loc('CURRENTAGE')]
+        last_exam_date = datetime.datetime.strptime(
+            Dtrain_examdate.values[np.where(idx_S)[0][-1]], 
+            '%Y-%m-%d')
+        last_exam_age = Dtrain_age[np.where(idx_S)[0][-1]]
+        
+        new_date = datetime.datetime.strptime(_date, '%Y-%m')
+        new_age =  _update_age(last_exam_age, last_exam_date, new_date)
+        normalised_age = (new_age - m_age) / s_age
+        Dtestmat[_idate, Dtrain.columns.get_loc('CURRENTAGE')] = normalised_age
+    Dtestmats.append(Dtestmat)
+
+
+
+Dtestmat = np.concatenate(Dtestmats)
+forecast_month = np.array(_forecast_month)
+forecast_date = np.array(_forecast_date)
+forecast_rids = np.concatenate(_forecast_rids)
 
 # Test SVM for Diagnosis
 p = clf.predict_proba(Dtestmat)
@@ -228,20 +279,34 @@ y_Ventricles_ICV_lower = y_Ventricles_ICV - CI50_Ventricles_ICV
 y_Ventricles_ICV_lower[y_Ventricles_ICV_lower<0] = 0
 y_Ventricles_ICV_upper = y_Ventricles_ICV + CI50_Ventricles_ICV
 
-#Write ouput format to files
-o = np.column_stack((S, S, S, p, y_ADAS13, y_ADAS13_lower, y_ADAS13_upper, y_Ventricles_ICV, y_Ventricles_ICV_lower, y_Ventricles_ICV_upper))
-count = 0
-years=[str(a) for a in range(2010,2018)]
-months=[str(a).zfill(2) for a in range(1,13)]
-ym=[y + '-' + mo for y in years for mo in months ]
-ym=ym[4:-8]
-nr_pred=len(ym)
-o1 = np.zeros((o.shape[0]*nr_pred,o.shape[1]))
-ym1 = [a for b in range(0, len(S)) for a in ym ]
-for i in range(len(o)):
-    o1[count:count+nr_pred]=o[i]
-    o1[count:count+nr_pred,1]=range(1,nr_pred+1)
-    count=count+nr_pred
+print(y_ADAS13.shape)
+
+# Write ouput format to files
+# o = np.column_stack((S, S, S, p, y_ADAS13, y_ADAS13_lower, y_ADAS13_upper, y_Ventricles_ICV, y_Ventricles_ICV_lower, y_Ventricles_ICV_upper))
+# count = 0
+# years=[str(a) for a in range(2010,2018)]
+# months=[str(a).zfill(2) for a in range(1,13)]
+# ym=[y + '-' + mo for y in years for mo in months ]
+# ym=ym[4:-8]
+# nr_pred=len(ym)
+# o1 = np.zeros((o.shape[0]*nr_pred,o.shape[1]))
+# ym1 = [a for b in range(0, len(S)) for a in ym ]
+# for i in range(len(o)):
+#     o1[count:count+nr_pred]=o[i]
+#     o1[count:count+nr_pred,1]=range(1,nr_pred+1)
+#     count=count+nr_pred
+
+o1 = np.column_stack((
+        forecast_rids, 
+        forecast_month, 
+        forecast_date, 
+        p, 
+        y_ADAS13, 
+        y_ADAS13_lower, 
+        y_ADAS13_upper, 
+        y_Ventricles_ICV, 
+        y_Ventricles_ICV_lower, 
+        y_Ventricles_ICV_upper))
     
 
 output = pd.DataFrame(
@@ -259,14 +324,24 @@ output = pd.DataFrame(
         'Ventricles_ICV',
         'Ventricles_ICV 50% CI lower',
         'Ventricles_ICV 50% CI upper'])
+output['RID'] = output['RID'].astype(int)
 output['Forecast Month'] = output['Forecast Month'].astype(int)
-output['Forecast Date'] = ym1
-
-output.to_csv('TADPOLE_Submission_Leaderboard_BenchmarkSVM.csv',header=True,index=False)
+output['Forecast Date'] = _forecast_date
+output['CN relative probability' ] = output['CN relative probability' ].astype(float)
+output['MCI relative probability'] = output['MCI relative probability'] .astype(float)
+output['AD relative probability'] = output['AD relative probability'].astype(float)
+output['ADAS13'] = output['ADAS13'].astype(float)
+output['ADAS13 50% CI lower'] = output['ADAS13 50% CI lower'].astype(float)
+output['ADAS13 50% CI upper'] = output['ADAS13 50% CI upper'].astype(float)
+output['Ventricles_ICV'] = output['Ventricles_ICV'].astype(float)
+output['Ventricles_ICV 50% CI lower'] = output['Ventricles_ICV 50% CI lower'].astype(float)
+output['Ventricles_ICV 50% CI upper'] = output['Ventricles_ICV 50% CI upper'].astype(float)
+output.to_csv('TADPOLE_Submission_Leaderboard_BenchmarkSVM.csv', header=True, index=False)
 
 
 print('Evaluate predictions')
 R=pd.read_csv('./TADPOLE_LB4.csv')
+
 import evalOneSubmission as eos
 mAUC, bca, adasMAE, ventsMAE, adasWES, ventsWES, adasCPA, ventsCPA = eos.evalOneSub(R,output)
 
